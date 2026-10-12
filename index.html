@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galaxy Alien Shooter</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    overflow:hidden;
+    background:black;
+    font-family:Arial;
+}
+
+canvas{
+    display:block;
+}
+
+/* START SCREEN */
+
+#startScreen{
+    position:absolute;
+    inset:0;
+    background:linear-gradient(to bottom,#020111,#000);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:200;
+}
+
+#startScreen h1{
+    color:cyan;
+    font-size:80px;
+    margin-bottom:30px;
+    text-shadow:0 0 30px cyan;
+}
+
+#startBtn{
+    padding:18px 45px;
+    font-size:28px;
+    border:none;
+    border-radius:12px;
+    background:lime;
+    color:black;
+    cursor:pointer;
+    font-weight:bold;
+    box-shadow:0 0 20px lime;
+}
+
+/* UI */
+
+#ui{
+    position:absolute;
+    top:10px;
+    left:10px;
+    color:white;
+    z-index:10;
+    font-size:22px;
+    line-height:1.6;
+    text-shadow:0 0 10px cyan;
+}
+
+/* GAME OVER */
+
+#gameOver{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,0.9);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:100;
+}
+
+#gameOver h1{
+    color:red;
+    font-size:70px;
+    text-shadow:0 0 20px red;
+}
+
+#restartBtn{
+    margin-top:20px;
+    padding:14px 35px;
+    border:none;
+    border-radius:10px;
+    background:cyan;
+    font-size:22px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+
+<div id="startScreen">
+
+    <h1>GALAXY WAR</h1>
+
+    <button id="startBtn">START GAME</button>
+
+</div>
+
+<!-- UI -->
+
+<div id="ui">
+    Score: <span id="score">0</span><br>
+    Level: <span id="level">1</span><br>
+    Health: <span id="health">100</span>
+</div>
+
+<!-- GAME OVER -->
+
+<div id="gameOver">
+
+    <h1>GAME OVER</h1>
+
+    <button id="restartBtn" onclick="location.reload()">
+        RESTART
+    </button>
+
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+// GAME STATE
+
+let gameStarted = false;
+let gameEnded = false;
+
+let score = 0;
+let level = 1;
+let health = 100;
+
+// UI
+
+const scoreEl = document.getElementById("score");
+const levelEl = document.getElementById("level");
+const healthEl = document.getElementById("health");
+
+// ARRAYS
+
+const bullets = [];
+const aliens = [];
+const enemyBullets = [];
+const particles = [];
+const medkits = [];
+const stars = [];
+
+let boss = null;
+
+// STARS
+
+for(let i=0;i<250;i++){
+
+    stars.push({
+
+        x:Math.random()*canvas.width,
+        y:Math.random()*canvas.height,
+        size:Math.random()*3,
+        speed:Math.random()*3
+
+    });
+
+}
+
+// PLAYER
+
+const player = {
+
+    x:canvas.width/2,
+    y:canvas.height-120,
+    w:70,
+    h:90,
+    speed:8
+
+};
+
+// KEYS
+
+const keys = {};
+
+document.addEventListener("keydown",e=>{
+    keys[e.key]=true;
+});
+
+document.addEventListener("keyup",e=>{
+    keys[e.key]=false;
+});
+
+// START BUTTON
+
+document.getElementById("startBtn").onclick = ()=>{
+
+    gameStarted = true;
+
+    document.getElementById("startScreen").style.display = "none";
+
+};
+
+// SHOOT
+
+function shoot(){
+
+    bullets.push({
+
+        x:player.x + player.w/2 - 4,
+        y:player.y,
+        w:8,
+        h:25,
+        speed:14
+
+    });
+
+}
+
+setInterval(()=>{
+
+    if(gameStarted && !gameEnded){
+
+        shoot();
+
+    }
+
+},180);
+
+// SPAWN ALIENS
+
+function spawnAlien(){
+
+    const type = Math.floor(Math.random()*3);
+
+    if(type===0){
+
+        aliens.push({
+
+            type:"normal",
+            x:Math.random()*(canvas.width-60),
+            y:-100,
+            w:60,
+            h:60,
+            hp:2,
+            speed:3,
+            color:"#8a2be2"
+
+        });
+
+    }
+
+    else if(type===1){
+
+        aliens.push({
+
+            type:"fast",
+            x:Math.random()*(canvas.width-40),
+            y:-100,
+            w:40,
+            h:40,
+            hp:1,
+            speed:6,
+            color:"red"
+
+        });
+
+    }
+
+    else{
+
+        aliens.push({
+
+            type:"tank",
+            x:Math.random()*(canvas.width-90),
+            y:-100,
+            w:90,
+            h:90,
+            hp:6,
+            speed:2,
+            color:"orange"
+
+        });
+
+    }
+
+}
+
+setInterval(()=>{
+
+    if(gameStarted && !gameEnded){
+
+        spawnAlien();
+
+    }
+
+},700);
+
+// BOSS
+
+function spawnBoss(){
+
+    boss = {
+
+        x:canvas.width/2 - 150,
+        y:60,
+        w:300,
+        h:170,
+        hp:200,
+        maxHp:200,
+        dir:5,
+        shootTimer:0
+
+    };
+
+}
+
+// EXPLOSION
+
+function explosion(x,y,color){
+
+    for(let i=0;i<35;i++){
+
+        particles.push({
+
+            x,
+            y,
+            size:Math.random()*5,
+            color,
+            vx:(Math.random()-0.5)*12,
+            vy:(Math.random()-0.5)*12,
+            life:50
+
+        });
+
+    }
+
+}
+
+// BACKGROUND
+
+function drawBackground(){
+
+    let g = ctx.createLinearGradient(0,0,0,canvas.height);
+
+    g.addColorStop(0,"#020111");
+    g.addColorStop(1,"black");
+
+    ctx.fillStyle = g;
+
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    for(let s of stars){
+
+        ctx.fillStyle = "white";
+
+        ctx.beginPath();
+
+        ctx.arc(s.x,s.y,s.size,0,Math.PI*2);
+
+        ctx.fill();
+
+        s.y += s.speed;
+
+        if(s.y > canvas.height){
+
+            s.y = 0;
+            s.x = Math.random()*canvas.width;
+
+        }
+
+    }
+
+}
+
+// PLAYER
+
+function drawPlayer(){
+
+    ctx.save();
+
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = "cyan";
+
+    ctx.fillStyle = "#00eaff";
+
+    ctx.beginPath();
+
+    ctx.moveTo(player.x+35,player.y);
+    ctx.lineTo(player.x+70,player.y+90);
+    ctx.lineTo(player.x,player.y+90);
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    // GLASS
+
+    ctx.fillStyle = "white";
+
+    ctx.beginPath();
+
+    ctx.arc(player.x+35,player.y+30,10,0,Math.PI*2);
+
+    ctx.fill();
+
+    // FIRE
+
+    ctx.fillStyle = "orange";
+
+    ctx.beginPath();
+
+    ctx.moveTo(player.x+20,player.y+90);
+    ctx.lineTo(player.x+35,player.y+120+Math.random()*10);
+    ctx.lineTo(player.x+50,player.y+90);
+
+    ctx.fill();
+
+    ctx.restore();
+
+}
+
+// MOVE PLAYER
+
+function movePlayer(){
+
+    if(keys["a"] || keys["ArrowLeft"]){
+        player.x -= player.speed;
+    }
+
+    if(keys["d"] || keys["ArrowRight"]){
+        player.x += player.speed;
+    }
+
+    if(keys["w"] || keys["ArrowUp"]){
+        player.y -= player.speed;
+    }
+
+    if(keys["s"] || keys["ArrowDown"]){
+        player.y += player.speed;
+    }
+
+    if(player.x < 0) player.x = 0;
+
+    if(player.x + player.w > canvas.width){
+        player.x = canvas.width-player.w;
+    }
+
+    if(player.y < 0) player.y = 0;
+
+    if(player.y + player.h > canvas.height){
+        player.y = canvas.height-player.h;
+    }
+
+}
+
+// BULLETS
+
+function drawBullets(){
+
+    bullets.forEach((b,i)=>{
+
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "lime";
+
+        ctx.fillStyle = "lime";
+
+        ctx.fillRect(b.x,b.y,b.w,b.h);
+
+        b.y -= b.speed;
+
+        if(b.y < -50){
+
+            bullets.splice(i,1);
+
+        }
+
+    });
+
+}
+
+// ALIENS
+
+function drawAliens(){
+
+    aliens.forEach((a,i)=>{
+
+        ctx.save();
+
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = a.color;
+
+        ctx.fillStyle = a.color;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            a.x+a.w/2,
+            a.y+a.h/2,
+            a.w/2,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        // EYES
+
+        ctx.fillStyle = "black";
+
+        ctx.beginPath();
+        ctx.arc(a.x+15,a.y+20,5,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(a.x+a.w-15,a.y+20,5,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+
+        a.y += a.speed;
+
+        // ALIEN SHOOT
+
+        if(Math.random() < 0.008){
+
+            enemyBullets.push({
+
+                x:a.x+a.w/2,
+                y:a.y+a.h,
+                w:8,
+                h:20,
+                speed:7,
+                color:a.color
+
+            });
+
+        }
+
+        // PLAYER COLLISION
+
+        if(
+
+            a.x < player.x + player.w &&
+            a.x + a.w > player.x &&
+            a.y < player.y + player.h &&
+            a.y + a.h > player.y
+
+        ){
+
+            health -= 15;
+
+            explosion(player.x,player.y,"red");
+
+            aliens.splice(i,1);
+
+        }
+
+        // BULLET HIT
+
+        bullets.forEach((b,j)=>{
+
+            if(
+
+                b.x < a.x + a.w &&
+                b.x + b.w > a.x &&
+                b.y < a.y + a.h &&
+                b.y + b.h > a.y
+
+            ){
+
+                a.hp--;
+
+                bullets.splice(j,1);
+
+                explosion(b.x,b.y,"yellow");
+
+                if(a.hp <= 0){
+
+                    score += 10;
+
+                    explosion(a.x,a.y,a.color);
+
+                    // MEDKIT
+
+                    if(Math.random() < 0.20){
+
+                        medkits.push({
+
+                            x:a.x,
+                            y:a.y,
+                            size:30
+
+                        });
+
+                    }
+
+                    aliens.splice(i,1);
+
+                    if(score % 150 === 0){
+
+                        level++;
+
+                    }
+
+                    // BOSS
+
+                    if(level===5 && !boss){
+
+                        spawnBoss();
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    });
+
+}
+
+// BOSS
+
+function drawBoss(){
+
+    if(!boss) return;
+
+    ctx.save();
+
+    ctx.shadowBlur = 40;
+    ctx.shadowColor = "purple";
+
+    ctx.fillStyle = "#ff00ff";
+
+    ctx.beginPath();
+
+    ctx.moveTo(boss.x+150,boss.y);
+
+    ctx.lineTo(boss.x+300,boss.y+100);
+
+    ctx.lineTo(boss.x+240,boss.y+170);
+
+    ctx.lineTo(boss.x+60,boss.y+170);
+
+    ctx.lineTo(boss.x,boss.y+100);
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    // EYES
+
+    ctx.fillStyle = "red";
+
+    ctx.beginPath();
+    ctx.arc(boss.x+90,boss.y+70,18,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(boss.x+210,boss.y+70,18,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+
+    boss.x += boss.dir;
+
+    if(boss.x<0 || boss.x+boss.w>canvas.width){
+
+        boss.dir *= -1;
+
+    }
+
+    // BOSS SHOOT
+
+    boss.shootTimer++;
+
+    if(boss.shootTimer > 20){
+
+        enemyBullets.push({
+
+            x:boss.x+boss.w/2,
+            y:boss.y+boss.h,
+            w:14,
+            h:35,
+            speed:10,
+            color:"magenta"
+
+        });
+
+        boss.shootTimer=0;
+
+    }
+
+    // HIT BOSS
+
+    bullets.forEach((b,i)=>{
+
+        if(
+
+            b.x < boss.x + boss.w &&
+            b.x + b.w > boss.x &&
+            b.y < boss.y + boss.h &&
+            b.y + b.h > boss.y
+
+        ){
+
+            bullets.splice(i,1);
+
+            boss.hp--;
+
+            explosion(b.x,b.y,"pink");
+
+        }
+
+    });
+
+    // BOSS DEAD
+
+    if(boss.hp <= 0){
+
+        explosion(boss.x+150,boss.y+80,"purple");
+
+        score += 500;
+
+        boss = null;
+
+        level++;
+
+    }
+
+    // HEALTH BAR
+
+    ctx.fillStyle = "white";
+
+    ctx.fillRect(canvas.width/2-200,20,400,20);
+
+    ctx.fillStyle = "red";
+
+    ctx.fillRect(
+
+        canvas.width/2-200,
+        20,
+        (boss.hp/boss.maxHp)*400,
+        20
+
+    );
+
+}
+
+// ENEMY BULLETS
+
+function drawEnemyBullets(){
+
+    enemyBullets.forEach((b,i)=>{
+
+        ctx.fillStyle = b.color;
+
+        ctx.fillRect(b.x,b.y,b.w,b.h);
+
+        b.y += b.speed;
+
+        if(
+
+            b.x < player.x + player.w &&
+            b.x + b.w > player.x &&
+            b.y < player.y + player.h &&
+            b.y + b.h > player.y
+
+        ){
+
+            health -= 10;
+
+            explosion(player.x,player.y,"orange");
+
+            enemyBullets.splice(i,1);
+
+        }
+
+        if(b.y > canvas.height){
+
+            enemyBullets.splice(i,1);
+
+        }
+
+    });
+
+}
+
+// MEDKIT
+
+function drawMedkits(){
+
+    medkits.forEach((m,i)=>{
+
+        ctx.fillStyle = "lime";
+
+        ctx.fillRect(m.x,m.y,m.size,m.size);
+
+        // PLUS
+
+        ctx.fillStyle = "white";
+
+        ctx.fillRect(m.x+12,m.y+5,6,20);
+
+        ctx.fillRect(m.x+5,m.y+12,20,6);
+
+        m.y += 3;
+
+        // PICKUP
+
+        if(
+
+            m.x < player.x + player.w &&
+            m.x + m.size > player.x &&
+            m.y < player.y + player.h &&
+            m.y + m.size > player.y
+
+        ){
+
+            health += 25;
+
+            if(health > 100){
+
+                health = 100;
+
+            }
+
+            medkits.splice(i,1);
+
+        }
+
+        if(m.y > canvas.height){
+
+            medkits.splice(i,1);
+
+        }
+
+    });
+
+}
+
+// PARTICLES
+
+function drawParticles(){
+
+    particles.forEach((p,i)=>{
+
+        ctx.fillStyle = p.color;
+
+        ctx.beginPath();
+
+        ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+
+        ctx.fill();
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        p.life--;
+
+        if(p.life <= 0){
+
+            particles.splice(i,1);
+
+        }
+
+    });
+
+}
+
+// UI
+
+function updateUI(){
+
+    scoreEl.innerText = score;
+    levelEl.innerText = level;
+    healthEl.innerText = health;
+
+}
+
+// GAME OVER
+
+function checkGameOver(){
+
+    if(health <= 0){
+
+        gameEnded = true;
+
+        document.getElementById("gameOver").style.display = "flex";
+
+    }
+
+}
+
+// MAIN LOOP
+
+function animate(){
+
+    requestAnimationFrame(animate);
+
+    if(!gameStarted) return;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    drawBackground();
+
+    movePlayer();
+
+    drawPlayer();
+
+    drawBullets();
+
+    drawAliens();
+
+    drawBoss();
+
+    drawEnemyBullets();
+
+    drawMedkits();
+
+    drawParticles();
+
+    updateUI();
+
+    checkGameOver();
+
+}
+
+animate();
+
+</script>
+</body>
+</html>
