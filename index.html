@@ -68,6 +68,11 @@ canvas{
     text-shadow:0 0 10px cyan;
 }
 
+.high-score-text {
+    color: yellow;
+    font-weight: bold;
+}
+
 /* GAME OVER */
 
 #gameOver{
@@ -116,6 +121,7 @@ canvas{
 
 <div id="ui">
     Score: <span id="score">0</span><br>
+    <span class="high-score-text">High Score: <span id="highScore">0</span></span><br>
     Level: <span id="level">1</span><br>
     Health: <span id="health">100</span>
 </div>
@@ -125,6 +131,7 @@ canvas{
 <div id="gameOver">
 
     <h1>GAME OVER</h1>
+    <h2 style="color: yellow; margin-top: 10px; font-size: 30px;">Your Score: <span id="finalScore">0</span></h2>
 
     <button id="restartBtn" onclick="location.reload()">
         RESTART
@@ -148,14 +155,21 @@ let gameStarted = false;
 let gameEnded = false;
 
 let score = 0;
+// LOCAL STORAGE SE HIGH SCORE NIKALNA
+let highScore = localStorage.getItem("galaxyHighScore") || 0; 
 let level = 1;
 let health = 100;
 
 // UI
 
 const scoreEl = document.getElementById("score");
+const highScoreEl = document.getElementById("highScore");
 const levelEl = document.getElementById("level");
 const healthEl = document.getElementById("health");
+const finalScoreEl = document.getElementById("finalScore");
+
+// SHOW HIGH SCORE ON LOAD
+highScoreEl.innerText = highScore;
 
 // ARRAYS
 
@@ -595,6 +609,13 @@ function drawAliens(){
 
                     score += 10;
 
+                    // CHECK AND UPDATE HIGH SCORE DURING GAMEPLAY
+                    if(score > highScore) {
+                        highScore = score;
+                        highScoreEl.innerText = highScore;
+                        localStorage.setItem("galaxyHighScore", highScore);
+                    }
+
                     explosion(a.x,a.y,a.color);
 
                     // MEDKIT
@@ -739,6 +760,13 @@ function drawBoss(){
         explosion(boss.x+150,boss.y+80,"purple");
 
         score += 500;
+        
+        // CHECK HIGH SCORE FOR BOSS KILL
+        if(score > highScore) {
+            highScore = score;
+            highScoreEl.innerText = highScore;
+            localStorage.setItem("galaxyHighScore", highScore);
+        }
 
         boss = null;
 
@@ -900,10 +928,17 @@ function updateUI(){
 
 function checkGameOver(){
 
-    if(health <= 0){
+    if(health <= 0 && !gameEnded){
 
         gameEnded = true;
+        
+        // Final check to update high score before game over screen
+        if(score > highScore) {
+            highScore = score;
+            localStorage.setItem("galaxyHighScore", highScore);
+        }
 
+        finalScoreEl.innerText = score;
         document.getElementById("gameOver").style.display = "flex";
 
     }
